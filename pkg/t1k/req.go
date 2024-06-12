@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -63,6 +64,7 @@ func (r *HttpRequest) Body() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	r.req.Body = io.NopCloser(bytes.NewReader(buf.Bytes()))
 	return buf.Bytes(), nil
 }
 
