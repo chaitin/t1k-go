@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/xbingW/t1k/misc"
+	"github.com/xbingW/t1k-go/misc"
 )
 
 type Response interface {

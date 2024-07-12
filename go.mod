@@ -1,4 +1,4 @@
-module github.com/xbingW/t1k
+module github.com/xbingW/t1k-go
 
 go 1.17
 

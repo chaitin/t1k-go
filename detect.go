@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/xbingW/t1k/detection"
-	"github.com/xbingW/t1k/misc"
-	"github.com/xbingW/t1k/t1k"
+	"github.com/xbingW/t1k-go/detection"
+	"github.com/xbingW/t1k-go/misc"
+	"github.com/xbingW/t1k-go/t1k"
 )
 
 func writeDetectionRequest(w io.Writer, req detection.Request) error {

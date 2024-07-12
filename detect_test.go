@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/xbingW/t1k/detection"
-	"github.com/xbingW/t1k/misc"
+	"github.com/xbingW/t1k-go/detection"
+	"github.com/xbingW/t1k-go/misc"
 )
 
 func TestWriteDetectRequest(t *testing.T) {
