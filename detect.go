@@ -243,7 +243,8 @@ func Detect(s io.ReadWriter, dc *detection.DetectionContext) (*detection.Result,
 }
 
 func DetectHttpRequest(s io.ReadWriter, req *http.Request) (*detection.Result, error) {
-	return doDetectRequest(s, detection.MakeHttpRequest(req))
+	dc, _ := detection.MakeContextWithRequest(req)
+	return doDetectRequest(s, detection.MakeHttpRequestInCtx(req, dc))
 }
 
 func DetectRequest(s io.ReadWriter, req detection.Request) (*detection.Result, error) {

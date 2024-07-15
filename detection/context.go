@@ -1,6 +1,9 @@
 package detection
 
 import (
+	"errors"
+	"net/http"
+
 	"github.com/xbingW/t1k-go/misc"
 )
 
@@ -33,6 +36,49 @@ func New() *DetectionContext {
 		LocalPort:  80,
 		Protocol:   "HTTP/1.1",
 	}
+}
+
+func MakeContextWithRequest(req *http.Request) (*DetectionContext, error) {
+	if req == nil {
+		return nil, errors.New("nil http.request or response")
+	}
+	wrapReq := &HttpRequest{
+		req: req,
+	}
+
+	// ignore GetRemoteIP error,not sure request record remote ip
+	remoteIP, _ := wrapReq.GetRemoteIP()
+	remotePort, _ := wrapReq.GetRemotePort()
+
+	localAddr, err := wrapReq.GetUpstreamAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	localPort, err := wrapReq.GetUpstreamPort()
+	if err != nil {
+		return nil, err
+	}
+
+	scheme := "http"
+	if req.TLS != nil {
+		scheme = "https"
+	}
+
+	context := &DetectionContext{
+		UUID:         misc.GenUUID(),
+		Scheme:       scheme,
+		ProxyName:    "go-sdk",
+		RemoteAddr:   remoteIP,
+		RemotePort:   remotePort,
+		LocalAddr:    localAddr,
+		LocalPort:    localPort,
+		ReqBeginTime: misc.Now(),
+		Request:      wrapReq,
+		Protocol:     req.Proto,
+	}
+	wrapReq.dc = context
+	return context, nil
 }
 
 func (dc *DetectionContext) ProcessResult(r *Result) {
