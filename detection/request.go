@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/xbingW/t1k-go/misc"
+	"github.com/chaitin/t1k-go/misc"
 )
 
 type Request interface {

@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xbingW/t1k-go/detection"
-	"github.com/xbingW/t1k-go/misc"
+	"github.com/chaitin/t1k-go/detection"
+
+	"github.com/chaitin/t1k-go/misc"
 )
 
 const (

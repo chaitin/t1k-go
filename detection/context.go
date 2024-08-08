@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/xbingW/t1k-go/misc"
+	"github.com/chaitin/t1k-go/misc"
 )
 
 type DetectionContext struct {

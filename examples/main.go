@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/xbingW/t1k-go"
+	"github.com/chaitin/t1k-go"
 )
 
 func main() {

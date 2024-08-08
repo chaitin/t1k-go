@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/xbingW/t1k-go/misc"
+	"github.com/chaitin/t1k-go/misc"
 )
 
 func TestWriteSimpleSection(t *testing.T) {

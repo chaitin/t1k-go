@@ -4,9 +4,10 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/xbingW/t1k-go/detection"
-	"github.com/xbingW/t1k-go/misc"
-	"github.com/xbingW/t1k-go/t1k"
+	"github.com/chaitin/t1k-go/detection"
+	"github.com/chaitin/t1k-go/t1k"
+
+	"github.com/chaitin/t1k-go/misc"
 )
 
 type conn struct {
