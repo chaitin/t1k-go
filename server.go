@@ -64,7 +64,8 @@ func (s *Server) PutConn(c *conn) {
 }
 
 func (s *Server) broadcastHeartbeat() {
-	for {
+	l := len(s.poolCh)
+	for i := 0; i < l; i++ {
 		select {
 		case c := <-s.poolCh:
 			c.Heartbeat()
