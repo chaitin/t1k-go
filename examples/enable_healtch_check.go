@@ -1,5 +1,5 @@
-//go:build !healthcheck
-// +build !healthcheck
+//go:build healthcheck
+// +build healthcheck
 
 package main
 
@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 
 	"github.com/chaitin/t1k-go"
 )
@@ -16,6 +17,15 @@ func initDetect() *t1k.Server {
 	if err != nil {
 		return nil
 	}
+
+	// enable health check
+	hcConfig := &t1k.HealthCheckConfig{
+		Interval:          2,
+		HealthThreshold:   3,
+		UnhealthThreshold: 5,
+		Addresses:         []string{"10.9.32.250:8000", "10.9.32.250:8001"},
+	}
+	server.UpdateHealthCheckConfig(hcConfig)
 	return server
 }
 
@@ -36,6 +46,14 @@ func main() {
 			return
 		}
 		_, _ = w.Write([]byte("allowed"))
+	})
+
+	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+		stats := server.HealthCheckStats()
+		result := fmt.Sprintf("%#v\n\nIsHealth: %v\n", stats, server.IsHealth())
+		goRoutineNum := runtime.NumGoroutine()
+		result = fmt.Sprintf("%s\ngo routine num: %d\n", result, goRoutineNum)
+		_, _ = w.Write([]byte(result))
 	})
 	_ = http.ListenAndServe(":80", nil)
 }
