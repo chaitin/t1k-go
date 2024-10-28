@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -26,6 +27,8 @@ type Server struct {
 	closeCh       chan struct{}
 	logger        *log.Logger
 	mu            sync.Mutex
+
+	healthCheck *HealthCheckService
 }
 
 func (s *Server) newConn() error {
@@ -78,8 +81,16 @@ func (s *Server) broadcastHeartbeat() {
 }
 
 func (s *Server) runHeartbeatCo() {
+	interval := HEARTBEAT_INTERVAL
+	intervalRaw := os.Getenv("T1K_HEARTBEAT_INTERVAL")
+	if intervalRaw != "" {
+		val, err := strconv.Atoi(intervalRaw)
+		if err == nil {
+			interval = val
+		}
+	}
 	for {
-		timer := time.NewTimer(HEARTBEAT_INTERVAL * time.Second)
+		timer := time.NewTimer(time.Duration(interval) * time.Second)
 		select {
 		case <-s.closeCh:
 			return
@@ -87,6 +98,19 @@ func (s *Server) runHeartbeatCo() {
 		}
 		s.broadcastHeartbeat()
 	}
+}
+
+func (s *Server) UpdateHealthCheckConfig(config *HealthCheckConfig) error {
+	return s.healthCheck.UpdateConfig(config)
+}
+
+func (s *Server) IsHealth() bool {
+	return s.healthCheck.IsHealth()
+}
+
+func (s *Server) HealthCheckStats() HealthCheckStats {
+	stats := s.healthCheck.HealthCheckStats()
+	return stats
 }
 
 func NewFromSocketFactoryWithPoolSize(socketFactory func() (net.Conn, error), poolSize int) (*Server, error) {
@@ -104,7 +128,14 @@ func NewFromSocketFactoryWithPoolSize(socketFactory func() (net.Conn, error), po
 			return nil, err
 		}
 	}
+	healthCheck, err := NewHealthCheckService()
+	if err != nil {
+		return nil, err
+	}
+	ret.healthCheck = healthCheck
+
 	go ret.runHeartbeatCo()
+	go ret.healthCheck.Run()
 	return ret, nil
 }
 
@@ -181,4 +212,5 @@ func (s *Server) Close() {
 		}
 		c.Close()
 	}
+	s.healthCheck.Close()
 }

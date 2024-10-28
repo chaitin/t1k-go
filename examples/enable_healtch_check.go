@@ -23,7 +23,7 @@ func initDetect() *t1k.Server {
 		Interval:          2,
 		HealthThreshold:   3,
 		UnhealthThreshold: 5,
-		Addresses:         []string{"10.9.32.250:8000", "10.9.32.250:8001"},
+		Addresses:         []string{"1.1.1.1:8000", "1.1.1.2:8001"},
 	}
 	server.UpdateHealthCheckConfig(hcConfig)
 	return server
