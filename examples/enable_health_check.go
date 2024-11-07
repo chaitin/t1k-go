@@ -18,12 +18,17 @@ func initDetect() *t1k.Server {
 		return nil
 	}
 
-	// enable health check
+	// Enable health check.
+	// `HealthCheckProtocol` can be `HEALTH_CHECK_HTTP_PROTOCOL` or `HEALTH_CHECK_T1K_PROTOCOL`;
+	// `HEALTH_CHECK_HTTP_PROTOCOL` means use 'http' protocol for health check and `HEALTH_CHECK_T1K_PROTOCOL`
+	// means use t1k protocol for health check.
+	// If you want use https, pass `EnableTLS` with true in `HealthCheckConfig`
 	hcConfig := &t1k.HealthCheckConfig{
-		Interval:          2,
-		HealthThreshold:   3,
-		UnhealthThreshold: 5,
-		Addresses:         []string{"1.1.1.1:8000", "1.1.1.2:8001"},
+		Interval:            2,
+		HealthThreshold:     3,
+		UnhealthThreshold:   5,
+		Addresses:           []string{"1.1.1.1:8001"}, // detector service health check port
+		HealthCheckProtocol: t1k.HEALTH_CHECK_HTTP_PROTOCOL,
 	}
 	server.UpdateHealthCheckConfig(hcConfig)
 	return server
