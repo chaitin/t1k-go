@@ -11,6 +11,7 @@ type HealthCheckConfig struct {
 	Addresses           []string // like ['1.1.1.1:80', '1.1.1.2:8000']
 	Timeout             int64    // default 3000 millisecond
 	HealthCheckProtocol string
+	EnableTLS           bool
 }
 
 type HealthCheckStats struct {
@@ -84,6 +85,8 @@ func (hcs *HealthCheckService) UpdateConfig(config *HealthCheckConfig) error {
 	}
 
 	healthCheck.Addresses = config.Addresses
+	healthCheck.HealthCheckProtocol = config.HealthCheckProtocol
+	healthCheck.EnableTLS = config.EnableTLS
 	hcs.configChan <- healthCheck
 	return nil
 }
@@ -167,6 +170,8 @@ rerun:
 	switch hcs.healthCheckConfig.HealthCheckProtocol {
 	case HEALTH_CHECK_T1K_PROTOCOL:
 		protocolIns = NewT1KProtocol(hcs.healthCheckConfig.Addresses, hcs.healthCheckConfig.Timeout)
+	case HEALTH_CHECK_HTTP_PROTOCOL:
+		protocolIns = NewHTTPProtocol(hcs.healthCheckConfig.Addresses, hcs.healthCheckConfig.Timeout, hcs.healthCheckConfig.EnableTLS)
 	default:
 		protocolIns = NewT1KProtocol(hcs.healthCheckConfig.Addresses, hcs.healthCheckConfig.Timeout)
 	}
@@ -177,7 +182,6 @@ rerun:
 		case <-tricker.C:
 			hcs.Stats.Count += 1
 			ok, info := protocolIns.Check()
-
 			hcs.CaclErrorCount(ok, info)
 		case config := <-hcs.configChan:
 			hcs.healthCheckConfig = config
