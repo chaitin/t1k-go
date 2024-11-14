@@ -32,8 +32,6 @@ type Server struct {
 }
 
 func (s *Server) newConn() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	sock, err := s.socketFactory()
 	if err != nil {
 		return err
@@ -44,6 +42,8 @@ func (s *Server) newConn() error {
 }
 
 func (s *Server) GetConn() (*conn, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.count < s.poolSize {
 		for i := 0; i < (s.poolSize - s.count); i++ {
 			err := s.newConn()
