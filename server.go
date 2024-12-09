@@ -1,6 +1,7 @@
 package t1k
 
 import (
+	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -52,8 +53,16 @@ func (s *Server) GetConn() (*conn, error) {
 			}
 		}
 	}
-	c := <-s.poolCh
-	return c, nil
+
+	select {
+	case c, ok := <-s.poolCh:
+		if !ok {
+			return nil, errors.New("connection pool closed")
+		}
+		return c, nil
+	default:
+		return nil, errors.New("no available connections")
+	}
 }
 
 func (s *Server) PutConn(c *conn) {
@@ -93,6 +102,7 @@ func (s *Server) runHeartbeatCo() {
 		timer := time.NewTimer(time.Duration(interval) * time.Second)
 		select {
 		case <-s.closeCh:
+			timer.Stop()
 			return
 		case <-timer.C:
 		}
@@ -204,12 +214,12 @@ func (s *Server) DetectRequest(req detection.Request) (*detection.Result, error)
 
 // blocks until all pending detection is completed
 func (s *Server) Close() {
+	s.mu.Lock()
 	close(s.closeCh)
-	for i := 0; i < s.count; i++ {
-		c, err := s.GetConn()
-		if err != nil {
-			return
-		}
+	close(s.poolCh)
+	s.mu.Unlock()
+
+	for c := range s.poolCh {
 		c.Close()
 	}
 	s.healthCheck.Close()
