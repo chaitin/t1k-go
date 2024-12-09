@@ -26,15 +26,16 @@ func writeDetectionRequest(w io.Writer, req detection.Request) error {
 	}
 	{
 		bodySize, bodyReadCloser, err := req.Body()
-		if err == nil {
-			defer bodyReadCloser.Close()
-			sec := t1k.MakeReaderSection(t1k.TAG_BODY, bodySize, bodyReadCloser)
-			err = t1k.WriteSection(sec, w)
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
+		defer bodyReadCloser.Close()
+		sec := t1k.MakeReaderSection(t1k.TAG_BODY, bodySize, bodyReadCloser)
+		if err := t1k.WriteSection(sec, w); err != nil {
+			return err
 		}
 	}
+
 	{
 		data, err := req.Extra()
 		if err != nil {
@@ -84,8 +85,7 @@ func writeDetectionResponse(w io.Writer, rsp detection.Response) error {
 		if err == nil {
 			defer bodyReadCloser.Close()
 			sec := t1k.MakeReaderSection(t1k.TAG_RSP_BODY, bodySize, bodyReadCloser)
-			err = t1k.WriteSection(sec, w)
-			if err != nil {
+			if err := t1k.WriteSection(sec, w); err != nil {
 				return err
 			}
 		}

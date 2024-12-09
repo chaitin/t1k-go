@@ -115,13 +115,19 @@ func (r *HttpRequest) Header() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Read the Body in streams instead of reading all at once
+// This is useful when the body is too large to fit in memory
+// which leads to OOM
 func (r *HttpRequest) Body() (uint32, io.ReadCloser, error) {
-	bodyBytes, err := io.ReadAll(r.req.Body)
-	if err != nil {
-		return 0, nil, err
+	var size uint32
+
+	if r.req.ContentLength > 0 && r.req.ContentLength <= int64(^uint32(0)) {
+		size = uint32(r.req.ContentLength)
+	} else {
+		size = 0 // FIXME: when ContentLength is unknown, or too large, what should we do?
 	}
-	r.req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-	return uint32(len(bodyBytes)), io.NopCloser(bytes.NewReader(bodyBytes)), nil
+
+	return size, r.req.Body, nil
 }
 
 func (r *HttpRequest) Extra() ([]byte, error) {
