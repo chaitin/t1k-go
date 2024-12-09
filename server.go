@@ -102,6 +102,7 @@ func (s *Server) runHeartbeatCo() {
 		timer := time.NewTimer(time.Duration(interval) * time.Second)
 		select {
 		case <-s.closeCh:
+			timer.Stop()
 			return
 		case <-timer.C:
 		}
@@ -144,7 +145,7 @@ func NewFromSocketFactoryWithPoolSize(socketFactory func() (net.Conn, error), po
 	ret.healthCheck = healthCheck
 
 	go ret.runHeartbeatCo()
-	go ret.healthCheck.Run()
+	// go ret.healthCheck.Run() //FIXME: health check endless loop
 	return ret, nil
 }
 
