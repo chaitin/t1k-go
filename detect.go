@@ -35,7 +35,6 @@ func writeDetectionRequest(w io.Writer, req detection.Request) error {
 			return err
 		}
 	}
-
 	{
 		data, err := req.Extra()
 		if err != nil {

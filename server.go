@@ -145,7 +145,7 @@ func NewFromSocketFactoryWithPoolSize(socketFactory func() (net.Conn, error), po
 	ret.healthCheck = healthCheck
 
 	go ret.runHeartbeatCo()
-	// go ret.healthCheck.Run() //FIXME: health check endless loop
+	go ret.healthCheck.Run() //FIXME: health check endless loop
 	return ret, nil
 }
 
@@ -214,12 +214,12 @@ func (s *Server) DetectRequest(req detection.Request) (*detection.Result, error)
 
 // blocks until all pending detection is completed
 func (s *Server) Close() {
-	s.mu.Lock()
 	close(s.closeCh)
-	close(s.poolCh)
-	s.mu.Unlock()
-
-	for c := range s.poolCh {
+	for i := 0; i < s.count; i++ {
+		c, err := s.GetConn()
+		if err != nil {
+			return
+		}
 		c.Close()
 	}
 	s.healthCheck.Close()
