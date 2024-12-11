@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 
@@ -89,4 +90,45 @@ func TestReadDetectResult(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Printf("%v\n", ret)
+}
+
+func TestWriteDetectionRequestBodyNotEmpty(t *testing.T) {
+	sReq := "POST /form.php?id=3 HTTP/1.1\r\n" +
+		"Host: a.com\r\n" +
+		"Content-Length: 40\r\n" +
+		"Content-Type: application/json\r\n\r\n" +
+		"{\"name\": \"youcai\", \"password\": \"******\"}"
+	req, err := http.ReadRequest(bufio.NewReader(bytes.NewBuffer([]byte(sReq))))
+	bodySize := len([]byte("{\"name\": \"youcai\", \"password\": \"******\"}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dc := detection.New()
+	detReq := detection.MakeHttpRequestInCtx(req, dc)
+
+	var buf bytes.Buffer
+	err = writeDetectionRequest(&buf, detReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Attempt to read the body again
+	bodyRc := req.Body
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(bodyRc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if int64(len(body)) != int64(bodySize) {
+		t.Errorf("Expected body size %d, got %d", bodySize, len(body))
+	}
+
+	expectedBody := []byte("{\"name\": \"youcai\", \"password\": \"******\"}")
+	if !bytes.Equal(body, expectedBody) {
+		t.Errorf("Expected body %s, got %s", expectedBody, body)
+	}
 }
