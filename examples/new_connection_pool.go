@@ -12,7 +12,7 @@ import (
 	"github.com/chaitin/t1k-go"
 )
 
-func initDetect_1(addr string) *t1k.ChannelPool {
+func initDetect(addr string) *t1k.ChannelPool {
 	pc := &t1k.PoolConfig{
 		InitialCap:  1,
 		MaxIdle:     16,
@@ -28,7 +28,7 @@ func initDetect_1(addr string) *t1k.ChannelPool {
 }
 
 func main() {
-	server := initDetect_1(os.Getenv("DETECTOR_ADDR"))
+	server := initDetect(os.Getenv("DETECTOR_ADDR"))
 	if server == nil {
 		fmt.Println("Init detect error")
 		return
