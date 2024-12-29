@@ -3,15 +3,18 @@ package misc
 import (
 	"fmt"
 	"runtime"
+	"strings"
 )
 
 // wrapError 结构体用于包装错误信息
 type wrapError struct {
-	message string  // 错误消息
-	next    error   // 原始错误
-	pc      uintptr // 程序计数器，用于存储调用栈信息
-	file    string  // 源文件名
-	line    int     // 行号
+	message  string  // 错误消息
+	next     error   // 原始错误
+	pc       uintptr // 程序计数器，用于存储调用栈信息
+	file     string  // 源文件名
+	line     int     // 行号
+	pkgPath  string  // 包路径
+	funcName string  // 函数名
 }
 
 // Unwrap 方法实现错误链的展开
@@ -24,6 +27,9 @@ func (e *wrapError) Error() string {
 	if e.next == nil {
 		return e.message
 	}
+	if e.message == "" {
+		return e.next.Error()
+	}
 	return fmt.Sprintf("%s: %v", e.message, e.next)
 }
 
@@ -34,7 +40,7 @@ func (e *wrapError) Format(f fmt.State, c rune) {
 	case 'v':
 		if f.Flag('+') {
 			// 详细模式，包含堆栈信息
-			fmt.Fprintf(f, "%s\n\t%s:%d", e.message, e.file, e.line)
+			fmt.Fprintf(f, "%s.%s\n\t%s:%d", e.pkgPath, e.funcName, e.file, e.line)
 			if e.next != nil {
 				fmt.Fprintf(f, "\n%+v", e.next)
 			}
@@ -54,12 +60,23 @@ func wrap(err error, message string, skip int) error {
 	}
 	// 获取调用者的文件和行号信息
 	pc, file, line, _ := runtime.Caller(skip)
+	fn := runtime.FuncForPC(pc)
+	pkgPath, funcName := "", ""
+	if fn != nil {
+		name := fn.Name()
+		if lastDot := strings.LastIndex(name, "."); lastDot >= 0 {
+			pkgPath = name[:lastDot]
+			funcName = name[lastDot+1:]
+		}
+	}
 	return &wrapError{
-		message: message,
-		next:    err,
-		pc:      pc,
-		file:    file,
-		line:    line,
+		message:  message,
+		next:     err,
+		pc:       pc,
+		file:     file,
+		line:     line,
+		pkgPath:  pkgPath,
+		funcName: funcName,
 	}
 }
 
