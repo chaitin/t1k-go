@@ -35,6 +35,12 @@ type Server struct {
 	healthCheck *HealthCheckService
 }
 
+func (s *Server) UpdateSockErrorHandler(errorHandler func(error)) {
+	s.configLock.Lock()
+	defer s.configLock.Unlock()
+	s.SocketErrorHook = errorHandler
+}
+
 // added by YF-Networks's taochunhua
 func (s *Server) UpdateSockFactory(socketFactory func() (net.Conn, error)) {
 	s.configLock.Lock()
@@ -186,6 +192,16 @@ func NewWithPoolSize(addr string, poolSize int) (*Server, error) {
 
 func New(addr string) (*Server, error) {
 	return NewWithPoolSize(addr, DEFAULT_POOL_SIZE)
+}
+
+func NewWithPoolSizeWithTimeout(addr string, poolSize int, timeout time.Duration) (*Server, error) {
+	return NewFromSocketFactoryWithPoolSize(func() (net.Conn, error) {
+		return net.DialTimeout("tcp", addr, timeout)
+	}, poolSize)
+}
+
+func NewWithTimeout(addr string, timeout time.Duration) (*Server, error) {
+	return NewWithPoolSizeWithTimeout(addr, DEFAULT_POOL_SIZE, timeout)
 }
 
 func (s *Server) DetectRequestInCtx(dc *detection.DetectionContext) (*detection.Result, error) {
