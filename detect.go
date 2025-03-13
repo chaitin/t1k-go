@@ -26,13 +26,14 @@ func writeDetectionRequest(w io.Writer, req detection.Request) error {
 	}
 	{
 		bodySize, bodyReadCloser, err := req.Body()
-		if err == nil {
-			defer bodyReadCloser.Close()
-			sec := t1k.MakeReaderSection(t1k.TAG_BODY, bodySize, bodyReadCloser)
-			err = t1k.WriteSection(sec, w)
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
+		defer bodyReadCloser.Close()
+		sec := t1k.MakeReaderSection(t1k.TAG_BODY, bodySize, bodyReadCloser)
+		err = t1k.WriteSection(sec, w)
+		if err != nil {
+			return err
 		}
 	}
 	{
