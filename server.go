@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/chaitin/t1k-go/detection"
@@ -20,19 +21,51 @@ const (
 )
 
 type Server struct {
-	socketFactory func() (net.Conn, error)
-	poolCh        chan *conn
-	poolSize      int
-	count         int
-	closeCh       chan struct{}
-	logger        *log.Logger
-	mu            sync.Mutex
+	socketFactory   func() (net.Conn, error)
+	poolCh          chan *conn
+	poolSize        int64
+	count           int64
+	closeCh         chan struct{}
+	logger          *log.Logger
+	SocketErrorHook func(error)
+
+	cntlock    sync.Mutex
+	configLock sync.RWMutex
 
 	healthCheck *HealthCheckService
 }
 
+func (s *Server) UpdateSockErrorHandler(errorHandler func(error)) {
+	s.configLock.Lock()
+	defer s.configLock.Unlock()
+	s.SocketErrorHook = errorHandler
+}
+
+// added by YF-Networks's taochunhua
+func (s *Server) UpdateSockFactory(socketFactory func() (net.Conn, error)) {
+	s.configLock.Lock()
+	defer s.configLock.Unlock()
+	s.socketFactory = socketFactory
+}
+
+// refactor by YF-Networks's yeyunxi
+func (s *Server) CallSockFactory() (net.Conn, error) {
+	s.configLock.RLock()
+	defer s.configLock.RUnlock()
+	return s.callSockFactory()
+}
+
+// added by YF-Networks's yeyunxi
+func (s *Server) callSockFactory() (net.Conn, error) {
+	conn, err := s.socketFactory()
+	if err != nil && s.SocketErrorHook != nil {
+		s.SocketErrorHook(err)
+	}
+	return conn, err
+}
+
 func (s *Server) newConn() error {
-	sock, err := s.socketFactory()
+	sock, err := s.CallSockFactory()
 	if err != nil {
 		return err
 	}
@@ -42,37 +75,47 @@ func (s *Server) newConn() error {
 }
 
 func (s *Server) GetConn() (*conn, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.count < s.poolSize {
-		for i := 0; i < (s.poolSize - s.count); i++ {
-			err := s.newConn()
-			if err != nil {
-				return nil, err
+	var err error
+
+	if atomic.LoadInt64(&s.count) < s.poolSize {
+		s.cntlock.Lock()
+		if s.count < s.poolSize {
+			for i := int64(0); i < (s.poolSize - s.count); i++ {
+				err = s.newConn()
+				if err != nil {
+					break
+				}
 			}
 		}
+		s.cntlock.Unlock()
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	c := <-s.poolCh
+	if c.failing {
+		err = c.tryReconnIfFailed()
+		if err != nil {
+			s.poolCh <- c
+			return nil, err
+		}
+	}
+
 	return c, nil
 }
 
 func (s *Server) PutConn(c *conn) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if c.failing {
-		s.count -= 1
-		c.Close()
-	} else {
-		s.poolCh <- c
-	}
+	s.poolCh <- c
 }
 
 func (s *Server) broadcastHeartbeat() {
-	l := len(s.poolCh)
-	for i := 0; i < l; i++ {
+	for {
 		select {
 		case c := <-s.poolCh:
-			c.Heartbeat()
+			if !c.failing {
+				c.Heartbeat()
+			}
 			s.PutConn(c)
 		default:
 			return
@@ -101,6 +144,8 @@ func (s *Server) runHeartbeatCo() {
 }
 
 func (s *Server) UpdateHealthCheckConfig(config *HealthCheckConfig) error {
+	s.configLock.Lock()
+	defer s.configLock.Unlock()
 	return s.healthCheck.UpdateConfig(config)
 }
 
@@ -117,17 +162,13 @@ func NewFromSocketFactoryWithPoolSize(socketFactory func() (net.Conn, error), po
 	ret := &Server{
 		socketFactory: socketFactory,
 		poolCh:        make(chan *conn, poolSize),
-		poolSize:      poolSize,
+		poolSize:      int64(poolSize),
 		closeCh:       make(chan struct{}),
 		logger:        log.New(os.Stdout, "snserver", log.LstdFlags),
-		mu:            sync.Mutex{},
+		cntlock:       sync.Mutex{},
+		configLock:    sync.RWMutex{},
 	}
-	for i := 0; i < poolSize; i++ {
-		err := ret.newConn()
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	healthCheck, err := NewHealthCheckService()
 	if err != nil {
 		return nil, err
@@ -151,6 +192,16 @@ func NewWithPoolSize(addr string, poolSize int) (*Server, error) {
 
 func New(addr string) (*Server, error) {
 	return NewWithPoolSize(addr, DEFAULT_POOL_SIZE)
+}
+
+func NewWithPoolSizeWithTimeout(addr string, poolSize int, timeout time.Duration) (*Server, error) {
+	return NewFromSocketFactoryWithPoolSize(func() (net.Conn, error) {
+		return net.DialTimeout("tcp", addr, timeout)
+	}, poolSize)
+}
+
+func NewWithTimeout(addr string, timeout time.Duration) (*Server, error) {
+	return NewWithPoolSizeWithTimeout(addr, DEFAULT_POOL_SIZE, timeout)
 }
 
 func (s *Server) DetectRequestInCtx(dc *detection.DetectionContext) (*detection.Result, error) {
@@ -205,7 +256,7 @@ func (s *Server) DetectRequest(req detection.Request) (*detection.Result, error)
 // blocks until all pending detection is completed
 func (s *Server) Close() {
 	close(s.closeCh)
-	for i := 0; i < s.count; i++ {
+	for i := int64(0); i < s.count; i++ {
 		c, err := s.GetConn()
 		if err != nil {
 			return

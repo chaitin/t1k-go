@@ -3,6 +3,7 @@ package t1k
 import (
 	"errors"
 	"net"
+	"time"
 )
 
 // ConnectionFactory 连接工厂
@@ -22,7 +23,7 @@ type TcpFactory struct {
 
 // Factory 方法生成 TCP 连接
 func (t *TcpFactory) Factory() (interface{}, error) {
-	conn, err := net.Dial("tcp", t.Addr)
+	conn, err := net.DialTimeout("tcp", t.Addr, 3*time.Second)
 	if err != nil {
 		return nil, err
 	}

@@ -24,24 +24,38 @@ func makeConn(socket net.Conn, server *Server) *conn {
 	}
 }
 
+// added by YF-Networks's yeyunxi
+func (c *conn) tryReconnIfFailed() error {
+	if !c.failing {
+		return nil
+	}
+
+	sock, errConnect := c.server.CallSockFactory()
+	if errConnect == nil {
+		c.socket = sock
+		c.failing = false
+	}
+
+	return errConnect
+}
+
 func (c *conn) onErr(err error) {
 	if err != nil {
 		// re-open socket to recover from possible error state
 		c.socket.Close()
-		sock, errConnect := c.server.socketFactory()
+		sock, errConnect := c.server.CallSockFactory()
 		if errConnect != nil {
 			c.failing = true
-			return
 		}
 		c.socket = sock
 	}
 }
 
 func (c *conn) Close() {
-	if c.socket == nil {
-		return
+	if !c.failing {
+		c.socket.Close()
+		c.failing = true
 	}
-	c.socket.Close()
 }
 
 func (c *conn) DetectRequestInCtx(dc *detection.DetectionContext) (*detection.Result, error) {
