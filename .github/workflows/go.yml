@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [ '1.17', '1.20' ]
+        go-version: [ '1.23', '1.24' ]
     steps:
     - uses: actions/checkout@v4
 
@@ -25,3 +25,11 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+
+    - name: Build new_connection_pool.go
+      run: mv ./examples/new_connection_pool.go ./examples/main.go && go build -v ./examples/main.go
+
+    - name: Test new_connection_pool.go
+      run: go test -v ./...
+
+
