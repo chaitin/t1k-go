@@ -155,8 +155,13 @@ func (c *ChannelPool) Put(conn interface{}) error {
 
 	c.mu.Lock()
 
-	if c.conns == nil {
+	// 检查连接池是否已被释放
+	if c.conns == nil || c.factory == nil {
 		c.mu.Unlock()
+		// 如果 factory 为 nil，直接返回，避免调用 Close
+		if c.factory == nil {
+			return errors.New("connection pool has been released")
+		}
 		return c.Close(conn)
 	}
 
@@ -194,6 +199,10 @@ func (c *ChannelPool) Close(conn interface{}) error {
 	defer c.mu.Unlock()
 	// 连接数减一
 	c.openingConns--
+	// 增加对 factory 的空检查
+	if c.factory == nil {
+		return errors.New("factory is nil, connection pool might be released")
+	}
 	// 调用工厂的关闭方法
 	return c.factory.Close(conn)
 }
